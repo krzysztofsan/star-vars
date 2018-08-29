@@ -8,7 +8,7 @@ const SCENE = {
 
 const CONFIG = {
     controls: {
-        enabled: false
+        enabled: true
     },
     camera: {
         autoRotate: false
@@ -69,7 +69,6 @@ function init() {
     function initLights() {
 	    // Hemisphere light
         hemisphereLight = new THREE.HemisphereLight(0xaaaaaa, 0x000000, .9);
-        hemisphereLight.castShadow = true;
 
         // Shadow light
         shadowLight = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -96,7 +95,7 @@ function init() {
         var geomCockpit = new THREE.BoxGeometry(40, 20, 20);
         var matCockpit = new THREE.MeshPhongMaterial({
             color: colors.body,
-            shading: THREE.FlatShading
+            flatShading: THREE.FlatShading
         });
 
         geomCockpit.vertices[6].z -= 5;
@@ -111,7 +110,7 @@ function init() {
         var geomEngine = new THREE.BoxGeometry(30, 10, 10);
         var matEngine = new THREE.MeshPhongMaterial({
             color: colors.body,
-            shading: THREE.FlatShading
+            flatShading: THREE.FlatShading
         });
 
         geomEngine.vertices[0].z -= 2;
@@ -125,6 +124,8 @@ function init() {
         geomEngine.vertices[5].y += 10;
         geomEngine.vertices[6].z -= 5;
         geomEngine.vertices[7].z += 5;
+
+        geomEngine.translate(35, -5, 0);
 
         var engine = new THREE.Mesh(geomEngine, matEngine);
 
@@ -140,8 +141,8 @@ function init() {
         var geomWings = new THREE.BoxGeometry(20, 4, 100, 1, 1, 3);
         var matWings = new THREE.MeshPhongMaterial({
             color: colors.body,
-            shading: THREE.FlatShading
-        })
+            flatShading: THREE.FlatShading
+        });
 
         geomWings.vertices[0].x -= 10;
         geomWings.vertices[0].y -= 2;
@@ -156,6 +157,20 @@ function init() {
 
         this.mesh.add(wings);
 
+
+        // TODO: merge all the geometries
+        const mergedGeometry = new THREE.Geometry();
+        const mergedMaterial = new THREE.MeshPhongMaterial({
+            color: colors.body,
+            flatShading: THREE.FlatShading
+        });
+
+        mergedGeometry.merge(geomCockpit);
+        mergedGeometry.merge(geomEngine);
+        mergedGeometry.merge(geomWings);
+
+        this.mesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
+
         this.speed = 0;
         this.maxSpeed = 0.5;
         this.acceleration = 0.1;
@@ -166,8 +181,16 @@ function init() {
 	function initSpaceship() {
         spaceship = new Spaceship();
 
-        spaceship.mesh.scale.set(.15,.15,.15);
-        spaceship.mesh.rotation.y = Math.PI/2;
+        spaceship.mesh.scale.set(0.1, 0.1, 0.1);
+        spaceship.mesh.rotation.y = Math.PI / 2;
+
+        spaceship.mesh.updateMatrix();
+        spaceship.mesh.geometry.applyMatrix(spaceship.mesh.matrix);
+        spaceship.mesh.matrix.identity();
+
+        spaceship.mesh.position.set(0, 0, 0);
+        spaceship.mesh.rotation.set(0, 0, 0);
+        spaceship.mesh.scale.set(1, 1, 1);
 
         scene.add(spaceship.mesh);
     }
@@ -221,8 +244,9 @@ function animate() {
         controls.update();
     }
 
+    // Animate the spaceship
     spaceship.mesh.position.y = Math.sin(time / 10) / 5;
-    spaceship.mesh.rotation.z = Math.asin(spaceship.mesh.position.y) / 20;
+    spaceship.mesh.rotation.z = (-spaceship.speed / spaceship.maxSpeed) * Math.PI / 20;
 
     spaceship.mesh.position.x += spaceship.speed;
 
