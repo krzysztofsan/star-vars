@@ -8,7 +8,7 @@ const SCENE = {
 
 const CONFIG = {
     controls: {
-        enabled: true
+        enabled: false
     },
     camera: {
         autoRotate: false
@@ -172,6 +172,7 @@ function init() {
         this.mesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
 
         this.speed = 0;
+        this.direction = 0;
         this.maxSpeed = 0.5;
         this.acceleration = 0.1;
         this.slowdown = false;
@@ -237,18 +238,19 @@ function render() {
     renderer.render(scene, camera);
 }
 
-function animate() {
-    time += 1;
-
-    if (CONFIG.controls.enabled) {
-        controls.update();
-    }
-
+function updateSpaceship() {
     // Animate the spaceship
     spaceship.mesh.position.y = Math.sin(time / 10) / 5;
     spaceship.mesh.rotation.z = (-spaceship.speed / spaceship.maxSpeed) * Math.PI / 20;
 
     spaceship.mesh.position.x += spaceship.speed;
+
+    // Update speed
+    if (spaceship.speed > -spaceship.maxSpeed && spaceship.speed < spaceship.maxSpeed) {
+        spaceship.speed += spaceship.direction * spaceship.acceleration;
+    }
+
+    console.log(spaceship.speed);
 
     // Slowdown
     if (spaceship.slowdown) {
@@ -268,6 +270,16 @@ function animate() {
             }
         }
     }
+}
+
+function animate() {
+    time += 1;
+
+    if (CONFIG.controls.enabled) {
+        controls.update();
+    }
+
+    updateSpaceship();
 
     // Animate board
     board.mesh.rotation.x += 0.01;
@@ -296,21 +308,19 @@ document.addEventListener("keydown", function(event) {
         case KEY_CODE.RIGHT:
             if (spaceship.mesh.position.x < BOARD.maxPositionX) {
                 spaceship.slowdown = false;
-                spaceship.speed = spaceship.speed < spaceship.maxSpeed ?
-                    spaceship.speed + spaceship.acceleration :
-                    spaceship.maxSpeed;
+                spaceship.direction = 1;
             } else {
                 spaceship.slowdown = true;
+                spaceship.direction = 0;
             }
             break;
         case KEY_CODE.LEFT:
             if (spaceship.mesh.position.x > BOARD.minPositionX) {
                 spaceship.slowdown = false;
-                spaceship.speed = spaceship.speed > -spaceship.maxSpeed ?
-                    spaceship.speed - spaceship.acceleration :
-                    -spaceship.maxSpeed;
+                spaceship.direction = -1;
             } else {
                 spaceship.slowdown = true;
+                spaceship.direction = 0;
             }
     }
 
@@ -323,6 +333,7 @@ document.addEventListener("keyup", function(event) {
         case KEY_CODE.LEFT:
         case KEY_CODE.RIGHT:
             spaceship.slowdown = true;
+            spaceship.direction = 0;
     }
 
 });
