@@ -28,8 +28,8 @@ const colors = {
 };
 
 const BOARD = {
-    minPositionX: -10,
-    maxPositionX:  10
+    minPositionX: -15,
+    maxPositionX:  15
 };
 
 let renderer, camera, scene, controls;
@@ -171,12 +171,13 @@ function init() {
 
         this.mesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
 
-        this.speed = 0;
+        this.leftPressed = false;
+        this.rightPressed = false;
         this.direction = 0;
-        this.maxSpeed = 0.5;
-        this.acceleration = 0.1;
-        this.slowdown = false;
-        this.inertia = 0.01;
+
+        this.maxSpeed = 1.0;
+        this.acceleration = 0.15;
+        this.inertia = 0.03;
     }
 
 	function initSpaceship() {
@@ -239,37 +240,41 @@ function render() {
 }
 
 function updateSpaceship() {
+    const speed = spaceship.direction * spaceship.maxSpeed;
+
     // Animate the spaceship
     spaceship.mesh.position.y = Math.sin(time / 10) / 5;
-    spaceship.mesh.rotation.z = (-spaceship.speed / spaceship.maxSpeed) * Math.PI / 20;
-
-    spaceship.mesh.position.x += spaceship.speed;
+    spaceship.mesh.rotation.z = -(speed / spaceship.maxSpeed) * Math.PI / 10;
+    spaceship.mesh.position.x += speed;
 
     // Update speed
-    if (spaceship.speed > -spaceship.maxSpeed && spaceship.speed < spaceship.maxSpeed) {
-        spaceship.speed += spaceship.direction * spaceship.acceleration;
+    let directionIncrement = 0;
+
+    if (spaceship.leftPressed) {
+        if (spaceship.mesh.position.x > BOARD.minPositionX) {
+            directionIncrement += spaceship.direction - spaceship.acceleration > -1 ?
+                -spaceship.acceleration :
+                -1 - spaceship.direction;
+        }
     }
 
-    console.log(spaceship.speed);
+    if (spaceship.rightPressed) {
+        if (spaceship.mesh.position.x < BOARD.maxPositionX) {
+            directionIncrement += spaceship.direction + spaceship.acceleration < 1 ?
+                spaceship.acceleration :
+                1 - spaceship.direction;
+        }
+    }
 
+    // TODO: reduce to 0 if too close
     // Slowdown
-    if (spaceship.slowdown) {
-        if (spaceship.speed > 0) {
-            if (spaceship.speed < spaceship.inertia) {
-                spaceship.speed = 0;
-            } else {
-                spaceship.speed -= spaceship.inertia;
-            }
-        }
+    directionIncrement += spaceship.direction > 0 ?
+        -spaceship.inertia :
+        spaceship.direction < 0 ?
+            spaceship.inertia :
+            0;
 
-        if (spaceship.speed < 0) {
-            if (spaceship.speed > -spaceship.inertia) {
-                spaceship.speed = 0;
-            } else {
-                spaceship.speed += spaceship.inertia;
-            }
-        }
-    }
+    spaceship.direction += directionIncrement;
 }
 
 function animate() {
@@ -306,24 +311,11 @@ document.addEventListener("keydown", function(event) {
 
     switch (keyCode) {
         case KEY_CODE.RIGHT:
-            if (spaceship.mesh.position.x < BOARD.maxPositionX) {
-                spaceship.slowdown = false;
-                spaceship.direction = 1;
-            } else {
-                spaceship.slowdown = true;
-                spaceship.direction = 0;
-            }
+            spaceship.rightPressed = true;
             break;
         case KEY_CODE.LEFT:
-            if (spaceship.mesh.position.x > BOARD.minPositionX) {
-                spaceship.slowdown = false;
-                spaceship.direction = -1;
-            } else {
-                spaceship.slowdown = true;
-                spaceship.direction = 0;
-            }
+            spaceship.leftPressed = true;
     }
-
 });
 
 document.addEventListener("keyup", function(event) {
@@ -331,9 +323,9 @@ document.addEventListener("keyup", function(event) {
 
     switch (keyCode) {
         case KEY_CODE.LEFT:
+            spaceship.leftPressed = false;
+            break;
         case KEY_CODE.RIGHT:
-            spaceship.slowdown = true;
-            spaceship.direction = 0;
+            spaceship.rightPressed = false;
     }
-
 });
