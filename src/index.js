@@ -82,8 +82,6 @@ function Missile(spaceshipPosition) {
     this.mesh.position.x = spaceshipPosition.x;
     this.mesh.position.z = spaceshipPosition.z - 1;
 
-    console.log(spaceshipPosition);
-
     this.mesh.updateMatrix();
     this.mesh.geometry.applyMatrix(this.mesh.matrix);
     this.mesh.matrix.identity();
@@ -114,6 +112,7 @@ function init() {
 		camera.position.set(0, 10, 15);
 		camera.lookAt(new THREE.Vector3(0, 5, 0));
 
+		// TODO: remove for release
 		if (CONFIG.controls.enabled) {
             controls = new THREE.OrbitControls(camera);
             controls.autoRotate = CONFIG.camera.autoRotate;
@@ -381,6 +380,8 @@ function animate() {
     updateSpaceship();
     updateMissiles();
 
+    updateInterface();
+
 	requestAnimationFrame(animate);
 	render();
 }
@@ -397,6 +398,14 @@ render();
 animate();
 
 window.addEventListener("resize", onWindowResize);
+
+function updateInterface() {
+    const interface = document.getElementById("interface");
+
+    if (interface) {
+        interface.innerText = "Cooldown: " + spaceship.missles.cooldown;
+    }
+}
 
 document.addEventListener("keydown", function(event) {
     var keyCode = event.which;
@@ -425,7 +434,7 @@ document.addEventListener("keyup", function(event) {
                 spaceship.missles.push(new Missile(spaceship.mesh.position));
                 scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
 
-                spaceship.missles.cooldown = 100;    // TODO: don't hardcode it
+                spaceship.missles.cooldown = 50;    // TODO: don't hardcode it
             }
     }
 });
