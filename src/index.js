@@ -260,6 +260,7 @@ function init() {
         spaceship.inertia = 0.05;
 
         spaceship.missles = [];
+        spaceship.missles.cooldown = 0;
 
         scene.add(spaceship.mesh);
     }
@@ -361,6 +362,12 @@ function updateMissiles () {
             scene.remove(scene.getObjectByName(missile.mesh.name));
         }
     }
+
+    if (spaceship.missles.cooldown > 0) {
+        spaceship.missles.cooldown -= 1;
+    } else {
+        spaceship.missles.cooldown = 0;
+    }
 }
 
 function animate() {
@@ -414,7 +421,11 @@ document.addEventListener("keyup", function(event) {
             spaceship.rightPressed = false;
             break;
         case KEY_CODE.SPACE:
-            spaceship.missles.push(new Missile(spaceship.mesh.position));
-            scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
+            if (!spaceship.missles.cooldown) {
+                spaceship.missles.push(new Missile(spaceship.mesh.position));
+                scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
+
+                spaceship.missles.cooldown = 100;    // TODO: don't hardcode it
+            }
     }
 });
