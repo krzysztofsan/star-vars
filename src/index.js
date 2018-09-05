@@ -28,8 +28,8 @@ const colors = {
 };
 
 const BOARD = {
-    minPositionX: -15,
-    maxPositionX:  15
+    minPositionX: -17,
+    maxPositionX:  17
 };
 
 let renderer, camera, scene, controls;
@@ -171,28 +171,29 @@ function init() {
 
         this.mesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
 
-        this.leftPressed = false;
-        this.rightPressed = false;
-        this.direction = 0;
+        this.mesh.scale.set(0.1, 0.1, 0.1);
+        this.mesh.rotation.y = Math.PI / 2;
 
-        this.maxSpeed = 1.0;
-        this.acceleration = 0.15;
-        this.inertia = 0.03;
+        this.mesh.updateMatrix();
+        this.mesh.geometry.applyMatrix(this.mesh.matrix);
+        this.mesh.matrix.identity();
+
+        this.mesh.position.set(0, 0, 0);
+        this.mesh.rotation.set(0, 0, 0);
+        this.mesh.scale.set(1, 1, 1);
     }
 
 	function initSpaceship() {
         spaceship = new Spaceship();
 
-        spaceship.mesh.scale.set(0.1, 0.1, 0.1);
-        spaceship.mesh.rotation.y = Math.PI / 2;
+        spaceship.leftPressed = false;
+        spaceship.leftSpeed = 0;
+        spaceship.rightPressed = false;
+        spaceship.rightSpeed = 0;
 
-        spaceship.mesh.updateMatrix();
-        spaceship.mesh.geometry.applyMatrix(spaceship.mesh.matrix);
-        spaceship.mesh.matrix.identity();
-
-        spaceship.mesh.position.set(0, 0, 0);
-        spaceship.mesh.rotation.set(0, 0, 0);
-        spaceship.mesh.scale.set(1, 1, 1);
+        spaceship.maxSpeed = 1.0;
+        spaceship.acceleration = 0.15;
+        spaceship.inertia = 0.05;
 
         scene.add(spaceship.mesh);
     }
@@ -240,41 +241,42 @@ function render() {
 }
 
 function updateSpaceship() {
-    const speed = spaceship.direction * spaceship.maxSpeed;
+    // Update spaceship's speed
+    const speed = spaceship.leftSpeed *  spaceship.maxSpeed +
+                  spaceship.rightSpeed * spaceship.maxSpeed;
+
+    // Updating spaceship's position
+    if (
+        speed < 0 && spaceship.mesh.position.x > BOARD.minPositionX ||
+        speed > 0 && spaceship.mesh.position.x < BOARD.maxPositionX
+    ) {
+        spaceship.mesh.position.x += speed;
+    }
+
+    // Update directional speed
+    if (spaceship.leftPressed) {
+        spaceship.leftSpeed = spaceship.leftSpeed - spaceship.acceleration > -1 ?
+            spaceship.leftSpeed - spaceship.acceleration :
+            -1;
+    } else {
+        spaceship.leftSpeed = spaceship.leftSpeed + spaceship.inertia < 0 ?
+            spaceship.leftSpeed + spaceship.inertia :
+            0;
+    }
+
+    if (spaceship.rightPressed) {
+        spaceship.rightSpeed = spaceship.rightSpeed + spaceship.acceleration < 1 ?
+            spaceship.rightSpeed + spaceship.acceleration :
+            1;
+    } else {
+        spaceship.rightSpeed = spaceship.rightSpeed - spaceship.inertia > 0 ?
+            spaceship.rightSpeed - spaceship.inertia :
+            0;
+    }
 
     // Animate the spaceship
     spaceship.mesh.position.y = Math.sin(time / 10) / 5;
     spaceship.mesh.rotation.z = -(speed / spaceship.maxSpeed) * Math.PI / 10;
-    spaceship.mesh.position.x += speed;
-
-    // Update speed
-    let directionIncrement = 0;
-
-    if (spaceship.leftPressed) {
-        if (spaceship.mesh.position.x > BOARD.minPositionX) {
-            directionIncrement += spaceship.direction - spaceship.acceleration > -1 ?
-                -spaceship.acceleration :
-                -1 - spaceship.direction;
-        }
-    }
-
-    if (spaceship.rightPressed) {
-        if (spaceship.mesh.position.x < BOARD.maxPositionX) {
-            directionIncrement += spaceship.direction + spaceship.acceleration < 1 ?
-                spaceship.acceleration :
-                1 - spaceship.direction;
-        }
-    }
-
-    // TODO: reduce to 0 if too close
-    // Slowdown
-    directionIncrement += spaceship.direction > 0 ?
-        -spaceship.inertia :
-        spaceship.direction < 0 ?
-            spaceship.inertia :
-            0;
-
-    spaceship.direction += directionIncrement;
 }
 
 function animate() {
