@@ -36,8 +36,9 @@ const BOARD = {
     maxPositionX:  40
 };
 
+// TODO: verify vars and consts for unused
 let renderer, camera, scene, controls;
-let hemisphereLight, shadowLight, ambientLight, pointLight;
+let hemisphereLight, pointLight;
 let spaceship, board, asteroids;
 
 let time = 0;
@@ -65,14 +66,6 @@ function Asteroid(position) {
     this.mesh = new THREE.Mesh(geometry, material);
 
     this.mesh.position.set(position.x, position.y, position.z);
-
-    // this.mesh.updateMatrix();
-    // this.mesh.geometry.applyMatrix(this.mesh.matrix);
-    // this.mesh.matrix.identity();
-    //
-    // this.mesh.position.set(0, 0, 0);
-    // this.mesh.rotation.set(0, 0, 0);
-    // this.mesh.scale.set(1, 1, 1);
 
     this.mesh.name = "asteroid-" + Date.now();
 }
@@ -124,14 +117,6 @@ function Missile(spaceshipPosition) {
         spaceshipPosition.z - 1
     );
 
-    // this.mesh.updateMatrix();
-    // this.mesh.geometry.applyMatrix(this.mesh.matrix);
-    // this.mesh.matrix.identity();
-    //
-    // this.mesh.position.set(0, 0, 0);
-    // this.mesh.rotation.set(0, 0, 0);
-    // this.mesh.scale.set(1, 1, 1);
-
     // Generate an unique id
     this.mesh.name = "missile-" + Date.now();
 
@@ -169,26 +154,15 @@ function init() {
 		document.body.appendChild(renderer.domElement);
 	}
 
-	// TODO: Sunrise effect
     function initLights() {
 	    // Hemisphere light
         hemisphereLight = new THREE.HemisphereLight(0xaaaaaa, 0x000000, 0.9);
 
-        // Shadow light
-        shadowLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        shadowLight.position.set(100, 50, -100);
-        shadowLight.castShadow = true;
-
-        // Ambient light
-        ambientLight = new THREE.AmbientLight(0xdddddd, 0.5);
-
         // Point light
-        pointLight = new THREE.PointLight(0xffffff, 1.0);
+        pointLight = new THREE.PointLight(0xff4c00, 1.0);   // TODO: export to constants
         pointLight.position.set(0, 30, -200);
 
         scene.add(hemisphereLight);
-        // scene.add(shadowLight);
-        // scene.add(ambientLight);
         scene.add(pointLight);
     }
 
@@ -196,58 +170,31 @@ function init() {
     function Spaceship() {
         this.mesh = new THREE.Object3D();
 
-        // Create the cabin
+        // Cockpit
         var geomCockpit = new THREE.BoxGeometry(40, 20, 20);
-        var matCockpit = new THREE.MeshPhongMaterial({
-            color: colors.body,
-            flatShading: THREE.FlatShading
-        });
 
         geomCockpit.vertices[6].z -= 5;
         geomCockpit.vertices[7].z += 5;
 
-        var cockpit = new THREE.Mesh(geomCockpit, matCockpit);
-        cockpit.castShadow = true;
-        cockpit.receiveShadow = true;
-        this.mesh.add(cockpit);
+        // Front
+        var geomFront = new THREE.BoxGeometry(30, 10, 10);
 
-        // Create the front
-        var geomEngine = new THREE.BoxGeometry(30, 10, 10);
-        var matEngine = new THREE.MeshPhongMaterial({
-            color: colors.body,
-            flatShading: THREE.FlatShading
-        });
+        geomFront.vertices[0].z -= 2;
+        geomFront.vertices[1].z += 2;
+        geomFront.vertices[2].y += 2;
+        geomFront.vertices[3].y += 2;
 
-        geomEngine.vertices[0].z -= 2;
-        geomEngine.vertices[1].z += 2;
-        geomEngine.vertices[2].y += 2;
-        geomEngine.vertices[3].y += 2;
+        geomFront.vertices[4].z -= 5;
+        geomFront.vertices[4].y += 10;
+        geomFront.vertices[5].z += 5;
+        geomFront.vertices[5].y += 10;
+        geomFront.vertices[6].z -= 5;
+        geomFront.vertices[7].z += 5;
 
-        geomEngine.vertices[4].z -= 5;
-        geomEngine.vertices[4].y += 10;
-        geomEngine.vertices[5].z += 5;
-        geomEngine.vertices[5].y += 10;
-        geomEngine.vertices[6].z -= 5;
-        geomEngine.vertices[7].z += 5;
+        geomFront.translate(35, -5, 0);
 
-        geomEngine.translate(35, -5, 0);
-
-        var engine = new THREE.Mesh(geomEngine, matEngine);
-
-        engine.position.x = 35;
-        engine.position.y = -5;
-
-        engine.castShadow = true;
-        engine.receiveShadow = true;
-        this.mesh.add(engine);
-
-
-        // Create wings
+        // Wings
         var geomWings = new THREE.BoxGeometry(20, 4, 100, 1, 1, 3);
-        var matWings = new THREE.MeshPhongMaterial({
-            color: colors.body,
-            flatShading: THREE.FlatShading
-        });
 
         geomWings.vertices[0].x -= 10;
         geomWings.vertices[0].y -= 2;
@@ -258,11 +205,7 @@ function init() {
         geomWings.vertices[4].x -= 10;
         geomWings.vertices[7].x -= 10;
 
-        var wings = new THREE.Mesh(geomWings, matWings);
-
-        // TODO: unnecessary
-        this.mesh.add(wings);
-
+        // Spaceship
         const mergedGeometry = new THREE.Geometry();
         const mergedMaterial = new THREE.MeshPhongMaterial({
             color: colors.body,
@@ -270,7 +213,7 @@ function init() {
         });
 
         mergedGeometry.merge(geomCockpit);
-        mergedGeometry.merge(geomEngine);
+        mergedGeometry.merge(geomFront);
         mergedGeometry.merge(geomWings);
 
         this.mesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
@@ -304,6 +247,7 @@ function init() {
         spaceship.missles = [];
         spaceship.missles.cooldown = 0;
 
+        // TODO: pass scene as an arg
         scene.add(spaceship.mesh);
     }
 
