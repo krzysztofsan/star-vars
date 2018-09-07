@@ -478,7 +478,7 @@ animate();
 
 window.addEventListener("resize", onWindowResize);
 
-function updateInterface() {
+function updateInterface(forceText) {
     const interface = document.getElementById("interface");
 
     // TODO: improve
@@ -489,7 +489,6 @@ function updateInterface() {
             "Score: \t\t" + spaceship.score + "\n"
             :
             "THE END!\nScore: " + spaceship.score;
-
     }
 }
 
@@ -504,6 +503,31 @@ document.addEventListener("keydown", function(event) {
             spaceship.leftPressed = true;
     }
 });
+
+if (window.DeviceMotionEvent) {
+    window.addEventListener('devicemotion', function(event) {
+        const acc = event.accelerationIncludingGravity;
+
+        // TODO: prototype - works only for portrait mode
+        if (acc.x > 1) {
+            spaceship.rightPressed = true;
+        } else if (acc.x < -1) {
+            spaceship.leftPressed = true;
+        } else {
+            spaceship.rightPressed = false;
+            spaceship.leftPressed = false;
+        }
+    });
+}
+
+window.addEventListener("touchend", function() {
+    if (!spaceship.missles.cooldown) {
+        spaceship.missles.push(new Missile(spaceship.mesh.position));
+        scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
+
+        spaceship.missles.cooldown = spaceship.missles.maxCooldown;
+    }
+})
 
 document.addEventListener("keyup", function(event) {
     var keyCode = event.which;
