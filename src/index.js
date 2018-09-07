@@ -43,8 +43,93 @@ let spaceship, board, asteroids;
 
 let time = 0;
 
+function Board() {
+    this.mesh = new THREE.Object3D();
+
+    const boardGeometry = new THREE.CylinderGeometry(400, 400, 500, 20, 20);
+    const boardMaterial = new THREE.MeshPhongMaterial({
+        color: colors.board
+    })
+
+    for (var i = 0; i < boardGeometry.vertices.length; i++) {
+        boardGeometry.vertices[i].x += (Math.random() - 0.5) * 10;
+        boardGeometry.vertices[i].y += (Math.random() - 0.5) * 10;
+        boardGeometry.vertices[i].z += (Math.random() - 0.5) * 10;
+    }
+
+    const boardMesh = new THREE.Mesh(boardGeometry, boardMaterial);
+
+    boardMesh.castShadow = true;
+    boardMesh.receiveShadow = true;
+
+    this.mesh.add(boardMesh);
+}
+
+// TODO: Make it look like Orzeł 7
+function Spaceship() {
+    this.mesh = new THREE.Object3D();
+
+    // Cockpit
+    var geomCockpit = new THREE.BoxGeometry(40, 20, 20);
+
+    geomCockpit.vertices[6].z -= 5;
+    geomCockpit.vertices[7].z += 5;
+
+    // Front
+    var geomFront = new THREE.BoxGeometry(30, 10, 10);
+
+    geomFront.vertices[0].z -= 2;
+    geomFront.vertices[1].z += 2;
+    geomFront.vertices[2].y += 2;
+    geomFront.vertices[3].y += 2;
+
+    geomFront.vertices[4].z -= 5;
+    geomFront.vertices[4].y += 10;
+    geomFront.vertices[5].z += 5;
+    geomFront.vertices[5].y += 10;
+    geomFront.vertices[6].z -= 5;
+    geomFront.vertices[7].z += 5;
+
+    geomFront.translate(35, -5, 0);
+
+    // Wings
+    var geomWings = new THREE.BoxGeometry(20, 4, 100, 1, 1, 3);
+
+    geomWings.vertices[0].x -= 10;
+    geomWings.vertices[0].y -= 2;
+    geomWings.vertices[1].y -= 2;
+    geomWings.vertices[2].y -= 2;
+    geomWings.vertices[3].y -= 2;
+    geomWings.vertices[3].x -= 10;
+    geomWings.vertices[4].x -= 10;
+    geomWings.vertices[7].x -= 10;
+
+    // Spaceship
+    const mergedGeometry = new THREE.Geometry();
+    const mergedMaterial = new THREE.MeshPhongMaterial({
+        color: colors.body,
+        flatShading: THREE.FlatShading
+    });
+
+    mergedGeometry.merge(geomCockpit);
+    mergedGeometry.merge(geomFront);
+    mergedGeometry.merge(geomWings);
+
+    // const translationMatrix = new THREE.Matrix4().makeTranslation(0, -20, 0);
+    const scaleMatrix = new THREE.Matrix4().makeScale(0.2, 0.2, 0.2);
+    const rotationMatrix = new THREE.Matrix4().makeRotationY(Math.PI / 2).multiply(new THREE.Matrix4().makeRotationZ(0.3));
+
+    const repositionMatrix = rotationMatrix.multiply(scaleMatrix);
+
+    mergedGeometry.applyMatrix(repositionMatrix);
+
+    this.mesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
+
+    this.mesh.position.setY(-20);
+}
+
 function Asteroid(position) {
-    this.radius = 10;
+    this.radius = 8 + (Math.random() * 4 - 2);
     this.mesh = new THREE.Object3D();
 
     let geometry = new THREE.SphereGeometry(this.radius);
@@ -56,7 +141,7 @@ function Asteroid(position) {
     // TODO: improve randomizer mechanism
     for (let i = 0; i < geometry.vertices.length; i ++) {
         const vertex = geometry.vertices[i];
-        const max = 1;
+        const max = this.radius / 5;
 
         vertex.x += Math.random() * max - max / 2;
         vertex.y += Math.random() * max - max / 2;
@@ -108,13 +193,13 @@ function Missile(spaceshipPosition) {
 
     this.mesh = new THREE.Mesh(geometry, material);
 
-    this.mesh.scale.set(0.2, 0.2, 0.2);
+    this.mesh.scale.set(0.3, 0.3, 0.3);
     this.mesh.rotation.x = -Math.PI / 2 + 0.2;
 
     this.mesh.position.set(
         spaceshipPosition.x,
-        spaceshipPosition.y - 15,   // TODO hack!
-        spaceshipPosition.z - 1
+        spaceshipPosition.y,
+        spaceshipPosition.z - 2
     );
 
     // Generate an unique id
@@ -166,72 +251,6 @@ function init() {
         scene.add(pointLight);
     }
 
-    // TODO: Make it look like Orzeł 7
-    function Spaceship() {
-        this.mesh = new THREE.Object3D();
-
-        // Cockpit
-        var geomCockpit = new THREE.BoxGeometry(40, 20, 20);
-
-        geomCockpit.vertices[6].z -= 5;
-        geomCockpit.vertices[7].z += 5;
-
-        // Front
-        var geomFront = new THREE.BoxGeometry(30, 10, 10);
-
-        geomFront.vertices[0].z -= 2;
-        geomFront.vertices[1].z += 2;
-        geomFront.vertices[2].y += 2;
-        geomFront.vertices[3].y += 2;
-
-        geomFront.vertices[4].z -= 5;
-        geomFront.vertices[4].y += 10;
-        geomFront.vertices[5].z += 5;
-        geomFront.vertices[5].y += 10;
-        geomFront.vertices[6].z -= 5;
-        geomFront.vertices[7].z += 5;
-
-        geomFront.translate(35, -5, 0);
-
-        // Wings
-        var geomWings = new THREE.BoxGeometry(20, 4, 100, 1, 1, 3);
-
-        geomWings.vertices[0].x -= 10;
-        geomWings.vertices[0].y -= 2;
-        geomWings.vertices[1].y -= 2;
-        geomWings.vertices[2].y -= 2;
-        geomWings.vertices[3].y -= 2;
-        geomWings.vertices[3].x -= 10;
-        geomWings.vertices[4].x -= 10;
-        geomWings.vertices[7].x -= 10;
-
-        // Spaceship
-        const mergedGeometry = new THREE.Geometry();
-        const mergedMaterial = new THREE.MeshPhongMaterial({
-            color: colors.body,
-            flatShading: THREE.FlatShading
-        });
-
-        mergedGeometry.merge(geomCockpit);
-        mergedGeometry.merge(geomFront);
-        mergedGeometry.merge(geomWings);
-
-        this.mesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
-
-        this.mesh.scale.set(0.1, 0.1, 0.1);
-        this.mesh.rotation.y = Math.PI / 2;
-        this.mesh.rotation.x = 0.3;
-        this.mesh.position.y -= 15;
-
-        this.mesh.updateMatrix();
-        this.mesh.geometry.applyMatrix(this.mesh.matrix);
-        this.mesh.matrix.identity();
-
-        this.mesh.position.set(0, 0, 0);
-        this.mesh.rotation.set(0, 0, 0);
-        this.mesh.scale.set(1, 1, 1);
-    }
-
 	function initSpaceship() {
         spaceship = new Spaceship();
 
@@ -240,37 +259,19 @@ function init() {
         spaceship.rightPressed = false;
         spaceship.rightSpeed = 0;
 
-        spaceship.maxSpeed = 1.0;
+        spaceship.maxSpeed = 1.5;
         spaceship.acceleration = 0.15;
         spaceship.inertia = 0.05;
 
         spaceship.missles = [];
         spaceship.missles.cooldown = 0;
+        spaceship.missles.maxCooldown = 30;
+
+        spaceship.lifes = 3;
+        spaceship.score = 0;
 
         // TODO: pass scene as an arg
         scene.add(spaceship.mesh);
-    }
-
-    function Board() {
-	    this.mesh = new THREE.Object3D();
-
-        const boardGeometry = new THREE.CylinderGeometry(400, 400, 500, 20, 20);
-        const boardMaterial = new THREE.MeshPhongMaterial({
-            color: colors.board
-        })
-
-        for (var i = 0; i < boardGeometry.vertices.length; i++) {
-            boardGeometry.vertices[i].x += (Math.random() - 0.5) * 10;
-            boardGeometry.vertices[i].y += (Math.random() - 0.5) * 10;
-            boardGeometry.vertices[i].z += (Math.random() - 0.5) * 10;
-        }
-
-        const boardMesh = new THREE.Mesh(boardGeometry, boardMaterial);
-
-        boardMesh.castShadow = true;
-        boardMesh.receiveShadow = true;
-
-        this.mesh.add(boardMesh);
     }
 
     function initBoard() {
@@ -287,12 +288,15 @@ function init() {
 	    asteroids = [];
 	    asteroids.maxCount = 20;
 	    asteroids.cooldown = 0;
+	    asteroids.maxCooldown = 50;
     }
 
 	initWebGL();
     initLights();
+
 	initSpaceship();
     initBoard();
+
     initAsteroids();
 }
 
@@ -339,7 +343,7 @@ function updateSpaceship() {
     }
 
     // Animate the spaceship
-    spaceship.mesh.position.y = Math.sin(time / 10) / 5;
+    spaceship.mesh.position.y += Math.sin(time / 10) / 20;
     spaceship.mesh.rotation.z = -(speed / spaceship.maxSpeed) * Math.PI / 10;
 }
 
@@ -352,11 +356,7 @@ function updateMissiles () {
         missile.mesh.position.applyAxisAngle(new THREE.Vector3(-1, 0, 0), missile.speed);
         missile.mesh.position.add(board.mesh.position);
 
-        // TODO: make it more generic (3d instead of 1d)
-        // if (missile.mesh.position.z < - missile.range) {
-        //     spaceship.missles.splice(i, 1);
-        //     scene.remove(scene.getObjectByName(missile.mesh.name));
-        // }
+        // TODO: Prevent missiles from orbiting (?)
     }
 
     if (spaceship.missles.cooldown > 0) {
@@ -368,6 +368,8 @@ function updateMissiles () {
 
 function updateAsteroids() {
     if (!asteroids.cooldown && asteroids.length < asteroids.maxCount) {
+
+        // TODO: Check for existing asteroids to avoid collision
         const initialPosition = {
             x: board.mesh.position.x + (BOARD.maxPositionX - BOARD.minPositionX) *Math.random() + BOARD.minPositionX,
             y: board.mesh.position.y - 410,
@@ -378,12 +380,8 @@ function updateAsteroids() {
         asteroids.push(asteroid);
         scene.add(asteroid.mesh);
 
-        asteroids.cooldown = 50;
+        asteroids.cooldown = asteroids.maxCooldown;
     }
-    // TODO: generate new asteroids if required
-    // TODO: rotate/move the asteroids
-    // TODO: remove old asteroids
-    // TODO: detect collision
 
     asteroids.forEach(function(asteroid, ai) {
         // Animate asteroids
@@ -408,14 +406,36 @@ function updateAsteroids() {
                 (m.y > a.y - r && m.y < a.y + r) &&
                 (m.z > a.z - r && m.z < a.z + r)
             ) {
-                // TODO: explosion
+                // TODO: Trigger explosion animation
+
                 asteroids.splice(ai, 1)
                 scene.remove(scene.getObjectByName(asteroid.mesh.name));
 
                 spaceship.missles.splice(mi, 1);
                 scene.remove(scene.getObjectByName(missile.mesh.name));
+
+                spaceship.score += 1;
             }
-        })
+        });
+
+        // Collision with the spaceship
+        const s = spaceship.mesh.position;
+        const a = asteroid.mesh.position;
+        const r = asteroid.radius;
+
+        // TODO: 1. extract 2. add a hitbox to the spaceship
+        if (
+            (s.x > a.x - r && s.x < a.x + r) &&
+            (s.y > a.y - r && s.y < a.y + r) &&
+            (s.z > a.z - r && s.z < a.z + r)
+        ) {
+            // TODO: Trigger collision animation
+
+            asteroids.splice(ai, 1)
+            scene.remove(scene.getObjectByName(asteroid.mesh.name));
+
+            spaceship.lifes -= 1;
+        }
     });
 
     if (asteroids.cooldown > 0) {
@@ -432,10 +452,12 @@ function animate() {
         controls.update();
     }
 
-    updateBoard();
-    updateSpaceship();
-    updateMissiles();
-    updateAsteroids();
+    if (spaceship.lifes > 0) {
+        updateBoard();
+        updateSpaceship();
+        updateMissiles();
+        updateAsteroids();
+    }
 
     updateInterface();
 
@@ -459,8 +481,15 @@ window.addEventListener("resize", onWindowResize);
 function updateInterface() {
     const interface = document.getElementById("interface");
 
+    // TODO: improve
     if (interface) {
-        interface.innerText = "Cooldown: " + spaceship.missles.cooldown;
+        interface.innerText = spaceship.lifes ?
+            "Cooldown: \t\t" + spaceship.missles.cooldown + "\n" +
+            "Lives: \t\t" + spaceship.lifes + "\n" +
+            "Score: \t\t" + spaceship.score + "\n"
+            :
+            "THE END!\nScore: " + spaceship.score;
+
     }
 }
 
@@ -491,7 +520,7 @@ document.addEventListener("keyup", function(event) {
                 spaceship.missles.push(new Missile(spaceship.mesh.position));
                 scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
 
-                spaceship.missles.cooldown = 50;    // TODO: don't hardcode it
+                spaceship.missles.cooldown = spaceship.missles.maxCooldown;
             }
     }
 });
