@@ -27,8 +27,13 @@ const colors = {
     board:      0x853004,
     cockpit:    0xdddddd,
     body:       0xdddddd,
-    missile:    0xcccccc,
-    asteroid:   0x777777
+    missile:    {
+        body: 0xcccccc,
+        peak: 0xff0000,
+        wings: 0xff0000
+    },
+    asteroid:   0x777777,
+    explosion:  0xffffff
 };
 
 const BOARD = {
@@ -39,9 +44,46 @@ const BOARD = {
 // TODO: verify vars and consts for unused
 let renderer, camera, scene, controls;
 let hemisphereLight, pointLight;
-let spaceship, board, asteroids;
+let spaceship, board, asteroids, explosions = [];
 
 let time = 0;
+
+function Explosion(p, radius) {
+    const particleCount = 1000;
+    const particles = new THREE.Geometry();
+    const pMaterial = new THREE.PointsMaterial({
+        color: colors.explosion,
+        size: 0.5,
+        blending: THREE.AdditiveBlending,
+        transparent: true
+    });
+
+    for (let i = 0; i < particleCount; i++) {
+        const px = Math.random() * 2 * radius - radius;
+
+        const ry = Math.sqrt(radius * radius - px * px);
+        const py = Math.random() * 2 * ry - ry;
+
+        const rz = Math.sqrt(ry * ry - py * py);
+        const pz = Math.random() * 2 * rz - rz;
+
+        const particle = new THREE.Vector3(px, py, pz);
+
+        particles.vertices.push(particle);
+    }
+
+    this.mesh = new THREE.Points(
+        particles,
+        pMaterial);
+    this.mesh.position.set(p.x, p.y, p.z);
+    this.mesh.name = "explosion-" + Date.now();
+
+    // TODO: move to init
+    this.explosionTimer = 0;
+    this.easingFunction = function() {
+        return 1.02 + (1 / Math.pow(1 + (this.explosionTimer / 3), 2));
+    };
+}
 
 function Board() {
     this.mesh = new THREE.Object3D();
@@ -128,7 +170,7 @@ function Spaceship() {
     this.mesh.position.setY(-20);
 }
 
-function Asteroid(position) {
+function Asteroid(p) {
     this.radius = 8 + (Math.random() * 4 - 2);
     this.mesh = new THREE.Object3D();
 
@@ -150,7 +192,7 @@ function Asteroid(position) {
 
     this.mesh = new THREE.Mesh(geometry, material);
 
-    this.mesh.position.set(position.x, position.y, position.z);
+    this.mesh.position.set(p.x, p.y, p.z);
 
     this.mesh.name = "asteroid-" + Date.now();
 }
@@ -158,20 +200,34 @@ function Asteroid(position) {
 function Missile(spaceshipPosition) {
     this.mesh = new THREE.Object3D();
 
-    let geometry = new THREE.Geometry();
-    let material = new THREE.MeshPhongMaterial({
-        color: colors.missile,
-        flatShading: THREE.SmoothShading
+    // TODO: Fire!
+
+    // Peak
+    const peakGeometry = new THREE.SphereGeometry(1, 8, 8);
+    const peakMaterial = new THREE.MeshPhongMaterial({
+        color: colors.missile.peak,
+        flatShading: THREE.FlatShading      // TODO: necessary?
     });
 
-    // TODO: Peak
-    // TODO: Fire!
-    // TODO: Colours
+    peakGeometry.translate(0, -5, 0)
 
+    const peak = new THREE.Mesh(peakGeometry, peakMaterial);
+
+
+    // Body
     const bodyGeometry = new THREE.CylinderGeometry(1, 1, 10, 8, 10);
 
     bodyGeometry.translate(0, -10, 0);
 
+    const bodyMaterial = new THREE.MeshPhongMaterial({
+        color: colors.missile.body,
+        flatShading: THREE.FlatShading      // TODO: necessary?
+    });
+
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+
+
+    // Wings
     const wingsGeometryZ = new THREE.BoxGeometry(5, 1, 0.1, 5, 1, 1);
     wingsGeometryZ.vertices[0].y -= 0.5;
     wingsGeometryZ.vertices[1].y -= 0.5;
@@ -187,12 +243,24 @@ function Missile(spaceshipPosition) {
     wingsGeometryZ.translate(0,  -14, 0);
     wingsGeometryX.translate(0,  -14, 0);
 
-    geometry.merge(bodyGeometry);
-    geometry.merge(wingsGeometryZ);
-    geometry.merge(wingsGeometryX);
+    const wingsGeometry = new THREE.Geometry();
 
-    this.mesh = new THREE.Mesh(geometry, material);
+    wingsGeometry.merge(wingsGeometryX);
+    wingsGeometry.merge(wingsGeometryZ);
 
+    const wingsMaterial = new THREE.MeshPhongMaterial({
+        color: colors.missile.wings,
+        flatShading: THREE.FlatShading
+    });
+
+    const wings = new THREE.Mesh(wingsGeometry, wingsMaterial);
+
+    // Combining them together
+    this.mesh = body;
+    this.mesh.add(peak);
+    this.mesh.add(wings);
+
+    // Adjusting scale, rotation and posiition
     this.mesh.scale.set(0.3, 0.3, 0.3);
     this.mesh.rotation.x = -Math.PI / 2 + 0.2;
 
@@ -366,6 +434,14 @@ function updateMissiles () {
     }
 }
 
+function triggerExplosion(position, radius) {
+    const explosion = new Explosion(position, radius);
+
+    explosion.mesh.position = position;
+    explosions.push(explosion);
+    scene.add(explosion.mesh);
+}
+
 function updateAsteroids() {
     if (!asteroids.cooldown && asteroids.length < asteroids.maxCount) {
 
@@ -390,7 +466,7 @@ function updateAsteroids() {
         asteroid.mesh.rotation.x += rotationIncrement;
         asteroid.mesh.rotation.z += rotationIncrement / 2;
 
-        // Rotate around the center
+        // Rotate around the center // TODO: make it general for all the objects
         asteroid.mesh.position.sub(board.mesh.position);
         asteroid.mesh.position.applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.01);
         asteroid.mesh.position.add(board.mesh.position);
@@ -407,6 +483,7 @@ function updateAsteroids() {
                 (m.z > a.z - r && m.z < a.z + r)
             ) {
                 // TODO: Trigger explosion animation
+                triggerExplosion(a, r);
 
                 asteroids.splice(ai, 1)
                 scene.remove(scene.getObjectByName(asteroid.mesh.name));
@@ -429,7 +506,8 @@ function updateAsteroids() {
             (s.y > a.y - r && s.y < a.y + r) &&
             (s.z > a.z - r && s.z < a.z + r)
         ) {
-            // TODO: Trigger collision animation
+            // TODO: Change collision animation
+            triggerExplosion(spaceship.mesh.position, 2);
 
             asteroids.splice(ai, 1)
             scene.remove(scene.getObjectByName(asteroid.mesh.name));
@@ -443,6 +521,25 @@ function updateAsteroids() {
     } else {
         asteroids.cooldown = 0;
     }
+}
+
+function updateExplosions() {
+    explosions.forEach(function(explosion, ei) {
+        explosion.mesh.scale.multiplyScalar(explosion.easingFunction());
+        explosion.mesh.material.opacity = (100 - explosion.explosionTimer) / 100;
+
+        if (explosion.explosionTimer > 100) {   // TODO: set as a constant
+            explosions.splice(ei, 1);
+            scene.remove(scene.getObjectByName(explosion.mesh.name));
+        }
+
+        explosion.explosionTimer += 1;
+
+        // Orbit // TODO: make it generall for all the objects
+        explosion.mesh.position.sub(board.mesh.position);
+        explosion.mesh.position.applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.01);
+        explosion.mesh.position.add(board.mesh.position);
+    })
 }
 
 function animate() {
@@ -461,6 +558,8 @@ function animate() {
 
     updateInterface();
 
+    updateExplosions();
+
 	requestAnimationFrame(animate);
 	render();
 }
@@ -478,7 +577,7 @@ animate();
 
 window.addEventListener("resize", onWindowResize);
 
-function updateInterface(forceText) {
+function updateInterface() {
     const interface = document.getElementById("interface");
 
     // TODO: improve
