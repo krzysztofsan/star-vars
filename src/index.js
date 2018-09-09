@@ -168,6 +168,8 @@ function Spaceship() {
     this.mesh = new THREE.Mesh(mergedGeometry, mergedMaterial);
 
     this.mesh.position.setY(-20);
+
+    this.mesh.name = "spaceship"
 }
 
 function Asteroid(p) {
@@ -260,13 +262,13 @@ function Missile(spaceshipPosition) {
     this.mesh.add(peak);
     this.mesh.add(wings);
 
-    // Adjusting scale, rotation and posiition
-    this.mesh.scale.set(0.3, 0.3, 0.3);
+    // Adjusting scale, rotation and position
+    this.mesh.scale.set(0.4, 0.4, 0.4);
     this.mesh.rotation.x = -Math.PI / 2 + 0.2;
 
     this.mesh.position.set(
         spaceshipPosition.x,
-        spaceshipPosition.y,
+        spaceshipPosition.y - 2,
         spaceshipPosition.z - 2
     );
 
@@ -335,8 +337,11 @@ function init() {
         spaceship.missles.cooldown = 0;
         spaceship.missles.maxCooldown = 30;
 
-        spaceship.lifes = 3;
+        spaceship.lifes = 5;
+        spaceship.maxLifes = spaceship.lifes;   // TODO: use it for showing damage/steam coming out of the breaking ship
         spaceship.score = 0;
+
+        spaceship.animations = [];
 
         // TODO: pass scene as an arg
         scene.add(spaceship.mesh);
@@ -377,6 +382,38 @@ function updateBoard() {
 }
 
 function updateSpaceship() {
+
+    // If there's any animation active, interrupt steering and play it
+    if (spaceship.animations && spaceship.animations.length) {
+        /*
+         *  Animation format:
+         *  - position
+         *  - rotation
+         *  - duration
+         */
+        const a = spaceship.animations[0];
+
+        if (!a.iterator) {
+            a.iterator = 0;
+        }
+
+        if (a.iterator < a.duration) {
+            spaceship.mesh.position.x += (a.position.x || 0) / a.duration;
+            spaceship.mesh.position.y += (a.position.y || 0) / a.duration;
+            spaceship.mesh.position.z += (a.position.z || 0) / a.duration;
+
+            spaceship.mesh.rotation.x += (a.rotation.x || 0) / a.duration;
+            spaceship.mesh.rotation.y += (a.rotation.y || 0) / a.duration;
+            spaceship.mesh.rotation.z += (a.rotation.z || 0) / a.duration;
+
+            a.iterator += 1;
+        } else {
+            spaceship.animations.splice(0, 1);
+        }
+
+        return;
+    }
+
     // Update spaceship's speed
     const speed = spaceship.leftSpeed *  spaceship.maxSpeed +
                   spaceship.rightSpeed * spaceship.maxSpeed;
@@ -411,11 +448,10 @@ function updateSpaceship() {
     }
 
     // Animate the spaceship
-    spaceship.mesh.position.y += Math.sin(time / 10) / 20;
+    // spaceship.mesh.position.y += Math.sin(time / 10) / 20;
     spaceship.mesh.rotation.z = -(speed / spaceship.maxSpeed) * Math.PI / 10;
 }
 
-// TODO: missiles should be orbiting around the board
 function updateMissiles () {
     for (let i = 0; i < spaceship.missles.length; i++) {
         const missile = spaceship.missles[i];
@@ -440,6 +476,32 @@ function triggerExplosion(position, radius) {
     explosion.mesh.position = position;
     explosions.push(explosion);
     scene.add(explosion.mesh);
+}
+
+function triggerCollision(asteroid) {
+    const modifier = asteroid.x > spaceship.mesh.position.x ? 1 : -1;
+
+    spaceship.animations.push({
+        position: {
+            x: -5 * modifier,
+            y: -5,
+        },
+        rotation: {
+            x: 0.5,
+            z: (Math.PI / 4) * modifier
+        },
+        duration: 4
+    }, {
+        position: {
+            x: 5 * modifier,
+            y: 5,
+        },
+        rotation: {
+            x: -0.5,
+            z: (-Math.PI / 4) * modifier
+        },
+        duration: 10
+    });
 }
 
 function updateAsteroids() {
@@ -471,6 +533,7 @@ function updateAsteroids() {
         asteroid.mesh.position.applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.01);
         asteroid.mesh.position.add(board.mesh.position);
 
+
         // Collision with missiles
         spaceship.missles.forEach(function(missile, mi) {
             const m = missile.mesh.position;
@@ -482,7 +545,6 @@ function updateAsteroids() {
                 (m.y > a.y - r && m.y < a.y + r) &&
                 (m.z > a.z - r && m.z < a.z + r)
             ) {
-                // TODO: Trigger explosion animation
                 triggerExplosion(a, r);
 
                 asteroids.splice(ai, 1)
@@ -491,28 +553,46 @@ function updateAsteroids() {
                 spaceship.missles.splice(mi, 1);
                 scene.remove(scene.getObjectByName(missile.mesh.name));
 
-                spaceship.score += 1;
+                if (spaceship.lifes > 0) {
+                    spaceship.score += 1;
+                }
             }
         });
 
         // Collision with the spaceship
-        const s = spaceship.mesh.position;
-        const a = asteroid.mesh.position;
-        const r = asteroid.radius;
+        if (spaceship.lifes > 0) {
+            const s = spaceship.mesh.position;
+            const a = asteroid.mesh.position;
+            const r = asteroid.radius;
 
-        // TODO: 1. extract 2. add a hitbox to the spaceship
-        if (
-            (s.x > a.x - r && s.x < a.x + r) &&
-            (s.y > a.y - r && s.y < a.y + r) &&
-            (s.z > a.z - r && s.z < a.z + r)
-        ) {
-            // TODO: Change collision animation
-            triggerExplosion(spaceship.mesh.position, 2);
+            // TODO: 1. extract 2. add a hitbox to the spaceship
+            if (
+                (s.x > a.x - r && s.x < a.x + r) &&
+                (s.y > a.y - r && s.y < a.y + r) &&
+                (s.z > a.z - r && s.z < a.z + r)
+            ) {
+                // TODO: Change collision animation
+                triggerExplosion(spaceship.mesh.position, 2);
+                triggerCollision(a);
 
-            asteroids.splice(ai, 1)
-            scene.remove(scene.getObjectByName(asteroid.mesh.name));
+                asteroids.splice(ai, 1)
+                scene.remove(scene.getObjectByName(asteroid.mesh.name));
 
-            spaceship.lifes -= 1;
+                spaceship.lifes -= 1;
+
+                // TODO: export to a function
+                if (spaceship.lifes <= 0) {
+                    scene.remove(scene.getObjectByName(spaceship.mesh.name));
+
+                    window.removeEventListener("keyup", keyUp);
+                    window.removeEventListener("keydown", keyDown);
+
+                    if (window.DeviceMotionEvent) {
+                        window.removeEventListener("devicemotion", deviceMotion);
+                        window.removeEventListener("touchend", touchend);
+                    }
+                }
+            }
         }
     });
 
@@ -535,7 +615,7 @@ function updateExplosions() {
 
         explosion.explosionTimer += 1;
 
-        // Orbit // TODO: make it generall for all the objects
+        // Orbit // TODO: make it general for all the objects
         explosion.mesh.position.sub(board.mesh.position);
         explosion.mesh.position.applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.01);
         explosion.mesh.position.add(board.mesh.position);
@@ -545,37 +625,30 @@ function updateExplosions() {
 function animate() {
     time += 1;
 
+    // TODO: remove for release
     if (CONFIG.controls.enabled) {
         controls.update();
     }
 
     if (spaceship.lifes > 0) {
-        updateBoard();
         updateSpaceship();
-        updateMissiles();
-        updateAsteroids();
     }
 
-    updateInterface();
-
+    updateBoard();
+    updateMissiles();
+    updateAsteroids();
     updateExplosions();
+
+    updateInterface();
 
 	requestAnimationFrame(animate);
 	render();
 }
 
-function onWindowResize() {
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-
-	renderer.setSize(window.innerWidth, window.innerHeight);
-}
 
 init();
 render();
 animate();
-
-window.addEventListener("resize", onWindowResize);
 
 function updateInterface() {
     const interface = document.getElementById("interface");
@@ -591,44 +664,7 @@ function updateInterface() {
     }
 }
 
-document.addEventListener("keydown", function(event) {
-    var keyCode = event.which;
-
-    switch (keyCode) {
-        case KEY_CODE.RIGHT:
-            spaceship.rightPressed = true;
-            break;
-        case KEY_CODE.LEFT:
-            spaceship.leftPressed = true;
-    }
-});
-
-if (window.DeviceMotionEvent) {
-    window.addEventListener('devicemotion', function(event) {
-        const acc = event.accelerationIncludingGravity;
-
-        // TODO: prototype - works only for portrait mode
-        if (acc.x > 1) {
-            spaceship.rightPressed = true;
-        } else if (acc.x < -1) {
-            spaceship.leftPressed = true;
-        } else {
-            spaceship.rightPressed = false;
-            spaceship.leftPressed = false;
-        }
-    });
-}
-
-window.addEventListener("touchend", function() {
-    if (!spaceship.missles.cooldown) {
-        spaceship.missles.push(new Missile(spaceship.mesh.position));
-        scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
-
-        spaceship.missles.cooldown = spaceship.missles.maxCooldown;
-    }
-})
-
-document.addEventListener("keyup", function(event) {
+function keyUp(event) {
     var keyCode = event.which;
 
     switch (keyCode) {
@@ -646,4 +682,56 @@ document.addEventListener("keyup", function(event) {
                 spaceship.missles.cooldown = spaceship.missles.maxCooldown;
             }
     }
-});
+}
+
+function keyDown(event) {
+    var keyCode = event.which;
+
+    switch (keyCode) {
+        case KEY_CODE.RIGHT:
+            spaceship.rightPressed = true;
+            break;
+        case KEY_CODE.LEFT:
+            spaceship.leftPressed = true;
+    }
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+window.addEventListener("resize", onWindowResize);
+
+window.addEventListener("keydown", keyDown);
+window.addEventListener("keyup", keyUp);
+
+if (window.DeviceMotionEvent) {
+    function deviceMotion(event) {
+        const acc = event.accelerationIncludingGravity;
+
+        // TODO: prototype - works only for portrait mode
+        if (acc.x > 1) {
+            spaceship.rightPressed = true;
+        } else if (acc.x < -1) {
+            spaceship.leftPressed = true;
+        } else {
+            spaceship.rightPressed = false;
+            spaceship.leftPressed = false;
+        }
+    }
+
+    function touchend() {
+        if (!spaceship.missles.cooldown) {
+            spaceship.missles.push(new Missile(spaceship.mesh.position));
+            scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
+
+            spaceship.missles.cooldown = spaceship.missles.maxCooldown;
+        }
+    }
+
+    window.addEventListener('devicemotion', deviceMotion);
+    window.addEventListener("touchend", touchend);
+}
