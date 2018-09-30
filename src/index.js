@@ -53,6 +53,13 @@ let spaceship, board, asteroids, pickups, explosions = [];
 
 let time = 0;
 
+const interface = {
+    missilesCooldown: document.getElementById("missiles-cooldown"),
+    missilesRemaining: document.getElementById("missiles-remaining"),
+    lives: document.getElementById("lives"),
+    score: document.getElementById("score")
+};
+
 const PICKUP_TYPE = Object.freeze({
     LIFE:       "life",
     MISSILES:   "missiles"
@@ -633,6 +640,8 @@ function updateAsteroids() {
                         window.removeEventListener("devicemotion", deviceMotion);
                         window.removeEventListener("touchend", touchend);
                     }
+
+                    endGame();
                 }
             }
         }
@@ -741,6 +750,7 @@ function animate() {
 
     if (spaceship.lifes > 0) {
         updateSpaceship();
+        updateInterface();
     }
 
     updateBoard();
@@ -749,29 +759,45 @@ function animate() {
     updatePickups();
     updateExplosions();
 
-    updateInterface();
-
 	requestAnimationFrame(animate);
 	render();
 }
-
 
 init();
 render();
 animate();
 
 function updateInterface() {
-    const interface = document.getElementById("interface");
+    if (interface.missilesCooldown) {
+        interface.missilesCooldown.innerText = spaceship.missles.cooldown;
+    }
 
-    // TODO: improve
-    if (interface) {
-        interface.innerText = spaceship.lifes ?
-            "Cooldown: \t\t" + spaceship.missles.cooldown + "\n" +
-            "Lives: \t\t" + spaceship.lifes + "\n" +
-            "Missles: \t\t" + spaceship.missles.remaining + "\n" +
-            "Score: \t\t" + spaceship.score + "\n"
-            :
-            "THE END!\nScore: " + spaceship.score;
+    if (interface.missilesRemaining) {
+        interface.missilesRemaining.innerText = spaceship.missles.remaining;
+    }
+
+    if (interface.lives) {
+        interface.lives.innerText = spaceship.lifes;
+    }
+
+    if (interface.score) {
+        score.innerText = spaceship.score;
+    }
+}
+
+function endGame() {
+    const interfaceElement = document.getElementById("interface");
+
+    interfaceElement.innerText = "THE END!\nScore: " + spaceship.score;
+}
+
+function fireMissile() {
+    if (!spaceship.missles.cooldown && spaceship.missles.remaining > 0) {
+        spaceship.missles.push(new Missile(spaceship.mesh.position));
+        scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
+
+        spaceship.missles.cooldown = spaceship.missles.maxCooldown;
+        spaceship.missles.remaining -= 1;
     }
 }
 
@@ -786,13 +812,7 @@ function keyUp(event) {
             spaceship.rightPressed = false;
             break;
         case KEY_CODE.SPACE:
-            if (!spaceship.missles.cooldown && spaceship.missles.remaining > 0) {
-                spaceship.missles.push(new Missile(spaceship.mesh.position));
-                scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
-
-                spaceship.missles.cooldown = spaceship.missles.maxCooldown;
-                spaceship.missles.remaining -= 1;
-            }
+            fireMissile();
     }
 }
 
@@ -835,14 +855,7 @@ if (window.DeviceMotionEvent) {
         }
     }
 
-    function touchend() {
-        if (!spaceship.missles.cooldown) {
-            spaceship.missles.push(new Missile(spaceship.mesh.position));
-            scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
-
-            spaceship.missles.cooldown = spaceship.missles.maxCooldown;
-        }
-    }
+    const touchend = fireMissile;
 
     window.addEventListener('devicemotion', deviceMotion);
     window.addEventListener("touchend", touchend);
