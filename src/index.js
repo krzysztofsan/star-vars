@@ -28,12 +28,17 @@ const colors = {
     cockpit:    0xdddddd,
     body:       0xdddddd,
     missile:    {
-        body: 0xcccccc,
-        peak: 0xff0000,
-        wings: 0xff0000
+        body:   0xcccccc,
+        peak:   0xff0000,
+        wings:  0xff0000
     },
     asteroid:   0x777777,
-    explosion:  0xffffff
+    explosion:  0xffffff,
+    pickup: {
+        rocket:     0x11ffaa,
+        life:       0xff2233,
+        default:    0xaaaaaa
+    }
 };
 
 const BOARD = {
@@ -44,9 +49,36 @@ const BOARD = {
 // TODO: verify vars and consts for unused
 let renderer, camera, scene, controls;
 let hemisphereLight, pointLight;
-let spaceship, board, asteroids, explosions = [];
+let spaceship, board, asteroids, pickups, explosions = [];
 
 let time = 0;
+
+const PICKUP_TYPE = Object.freeze({
+    LIFE:       "life",
+    MISSILES:   "missiles"
+});
+
+function PickUp(p, type) {
+    this.mesh = new THREE.Object3D();
+    this.radius = 8;
+
+    let geometry = new THREE.CubeGeometry(8, 8, 8);
+
+    const color = type === PICKUP_TYPE.LIFE ? colors.pickup.life :
+        type === PICKUP_TYPE.MISSILES ? colors.pickup.rocket :
+            colors.pickup.default;
+
+    let material = new THREE.MeshPhongMaterial({
+        color: color,
+        flatShading: THREE.SmoothShading
+    });
+
+    this.mesh = new THREE.Mesh(geometry, material);
+
+    this.mesh.position.set(p.x, p.y, p.z);
+
+    this.mesh.name = "pickup-" + Date.now();
+}
 
 function Explosion(p, radius) {
     const particleCount = 1000;
@@ -276,7 +308,7 @@ function Missile(spaceshipPosition) {
     this.mesh.name = "missile-" + Date.now();
 
     // Init missile's properties
-    this.range = 200;
+    this.range = 200;               // TODO: move elsewhere
     this.speed = 0.01;
 }
 
@@ -334,6 +366,7 @@ function init() {
         spaceship.inertia = 0.05;
 
         spaceship.missles = [];
+        spaceship.missles.remaining = 5;
         spaceship.missles.cooldown = 0;
         spaceship.missles.maxCooldown = 30;
 
@@ -364,6 +397,13 @@ function init() {
 	    asteroids.maxCooldown = 50;
     }
 
+    function initPickups() {
+	    pickups = [];
+	    pickups.maxCount = 5;
+        pickups.cooldown = 0;
+        pickups.maxCooldown = 300;
+    }
+
 	initWebGL();
     initLights();
 
@@ -371,6 +411,8 @@ function init() {
     initBoard();
 
     initAsteroids();
+
+    initPickups();
 }
 
 function render() {
@@ -448,7 +490,7 @@ function updateSpaceship() {
     }
 
     // Animate the spaceship
-    // spaceship.mesh.position.y += Math.sin(time / 10) / 20;
+    spaceship.mesh.position.y += Math.sin(time / 10) / 20;
     spaceship.mesh.rotation.z = -(speed / spaceship.maxSpeed) * Math.PI / 10;
 }
 
@@ -603,6 +645,73 @@ function updateAsteroids() {
     }
 }
 
+function updatePickups() {
+    if (!pickups.cooldown && pickups.length < pickups.maxCount) {
+
+        // TODO: Check for existing asteroids to avoid collision
+        const initialPosition = {
+            x: board.mesh.position.x + (BOARD.maxPositionX - BOARD.minPositionX) *Math.random() + BOARD.minPositionX,
+            y: board.mesh.position.y - 410,
+            z: board.mesh.position.z
+        };
+
+        const type = Math.random() < 0.05 ? PICKUP_TYPE.LIFE : PICKUP_TYPE.MISSILES;
+
+        const pickup = new PickUp(initialPosition, type);
+
+        pickup.bonus = {
+            lifes: type === PICKUP_TYPE.LIFE && 1,
+            missles: type === PICKUP_TYPE.MISSILES && 1  // TODO: add randomization
+        }
+
+        pickups.push(pickup);
+        scene.add(pickup.mesh);
+
+        pickups.cooldown = pickups.maxCooldown;
+    }
+
+    pickups.forEach(function(pickup, pi) {
+        // Animate pickups
+        const rotationIncrement = 0.02;
+
+        pickup.mesh.rotation.y += rotationIncrement;
+
+        // Rotate around the center // TODO: make it general for all the objects
+        pickup.mesh.position.sub(board.mesh.position);
+        pickup.mesh.position.applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.01);
+        pickup.mesh.position.add(board.mesh.position);
+
+
+        // Collision with the spaceship
+        if (spaceship.lifes > 0) {
+            const s = spaceship.mesh.position;
+            const p = pickup.mesh.position;
+            const r = pickup.radius;
+
+            // TODO: 1. extract 2. add a hitbox to the spaceship
+            if (
+                (s.x > p.x - r && s.x < p.x + r) &&
+                (s.y > p.y - r && s.y < p.y + r) &&
+                (s.z > p.z - r && s.z < p.z + r)
+            ) {
+                // TODO: Add collection animation
+                pickups.splice(pi, 1)
+                scene.remove(scene.getObjectByName(pickup.mesh.name));
+
+                spaceship.lifes += pickup.bonus.lifes;
+                spaceship.missles.remaining += pickup.bonus.missles;
+            }
+        }
+    });
+
+
+    if (pickups.cooldown > 0) {
+        pickups.cooldown -= 1;
+    } else {
+        pickups.cooldown = 0;
+    }
+}
+
 function updateExplosions() {
     explosions.forEach(function(explosion, ei) {
         explosion.mesh.scale.multiplyScalar(explosion.easingFunction());
@@ -637,6 +746,7 @@ function animate() {
     updateBoard();
     updateMissiles();
     updateAsteroids();
+    updatePickups();
     updateExplosions();
 
     updateInterface();
@@ -658,6 +768,7 @@ function updateInterface() {
         interface.innerText = spaceship.lifes ?
             "Cooldown: \t\t" + spaceship.missles.cooldown + "\n" +
             "Lives: \t\t" + spaceship.lifes + "\n" +
+            "Missles: \t\t" + spaceship.missles.remaining + "\n" +
             "Score: \t\t" + spaceship.score + "\n"
             :
             "THE END!\nScore: " + spaceship.score;
@@ -675,11 +786,12 @@ function keyUp(event) {
             spaceship.rightPressed = false;
             break;
         case KEY_CODE.SPACE:
-            if (!spaceship.missles.cooldown) {
+            if (!spaceship.missles.cooldown && spaceship.missles.remaining > 0) {
                 spaceship.missles.push(new Missile(spaceship.mesh.position));
                 scene.add(spaceship.missles[spaceship.missles.length - 1].mesh);    // TODO: rethink that
 
                 spaceship.missles.cooldown = spaceship.missles.maxCooldown;
+                spaceship.missles.remaining -= 1;
             }
     }
 }
