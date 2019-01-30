@@ -12,7 +12,7 @@ The goal is pretty straightforward, there are asteroids coming your way so the m
 Steer your spacecraft using arrows ⬅️ ➡️ and shoot with `spacebar` 
 
 Shooting rockets is only possible when the `cooldown` goes down to `0`, so be careful.
-Remember to collect ![#d31515](https://placehold.it/15/d31515/000000?text=+) and ![#6ed315](https://placehold.it/15/6ed315/000000?text=+) blocks - they provide you with rockets and health respectively.
+Remember to collect ![#d31515](https://placehold.it/15/d31515/000000?text=+) and ![#6ed315](https://placehold.it/15/6ed315/000000?text=+) blocks - they provide you with health and rockets respectively.
 
 ### I wanna play it! How do I do it? 🎮
 To run it, just copy the repo and open the `index.html` file in your browser
