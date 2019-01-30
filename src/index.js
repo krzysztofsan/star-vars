@@ -636,11 +636,6 @@ function updateAsteroids() {
                     window.removeEventListener("keyup", keyUp);
                     window.removeEventListener("keydown", keyDown);
 
-                    if (window.DeviceMotionEvent) {
-                        window.removeEventListener("devicemotion", deviceMotion);
-                        window.removeEventListener("touchend", touchend);
-                    }
-
                     endGame();
                 }
             }
@@ -839,24 +834,3 @@ window.addEventListener("resize", onWindowResize);
 
 window.addEventListener("keydown", keyDown);
 window.addEventListener("keyup", keyUp);
-
-if (window.DeviceMotionEvent) {
-    function deviceMotion(event) {
-        const acc = event.accelerationIncludingGravity;
-
-        // TODO: prototype - works only for portrait mode
-        if (acc.x > 1) {
-            spaceship.rightPressed = true;
-        } else if (acc.x < -1) {
-            spaceship.leftPressed = true;
-        } else {
-            spaceship.rightPressed = false;
-            spaceship.leftPressed = false;
-        }
-    }
-
-    const touchend = fireMissile;
-
-    window.addEventListener('devicemotion', deviceMotion);
-    window.addEventListener("touchend", touchend);
-}
