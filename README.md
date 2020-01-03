@@ -17,8 +17,6 @@ Remember to collect ![#d31515](https://placehold.it/15/d31515/000000?text=+) and
 ### I wanna play it! How do I do it? 🎮
 To run it, just copy the repo and open the `index.html` file in your browser
 
-Also available here: https://bodziowagh.github.io/
-
 <p align="center">
   <img src="https://github.com/bodziowagh/star-vars/blob/master/demo.gif?raw=true">
 </p>
